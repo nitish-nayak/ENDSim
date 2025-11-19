@@ -4,9 +4,9 @@
 
 #include <RAT/DSReader.hh>
 #include <RAT/DS/MC.hh>
-//#include <RAT/DS/RunStore.hh>
-//#include <RAT/DS/Run.hh>
-//#include <RAT/DS/PMTInfo.hh>
+#include <RAT/DS/RunStore.hh>
+#include <RAT/DS/Run.hh>
+#include <RAT/DS/PMTInfo.hh>
 #include <RAT/DS/MCPMT.hh>
 #include <RAT/DS/MCSummary.hh>
 #include <RAT/DS/Root.hh>
@@ -75,27 +75,58 @@ void process(std::string pattern, std::string outfilename){
     const unsigned int nevents = dsreader->GetT()->GetEntries();
     std::cout << "NEvents : " << nevents << std::endl;
 
+    // get pmt positions
+    TTree* runT = dsreader->GetRunT();
+    auto run = new RAT::DS::Run();
+    runT->SetBranchStatus("*", 1);
+    runT->SetBranchAddress("run", &run);
+    runT->GetEntry(0);
+    auto pmtinfo = run->GetPMTInfo();
+    int NPMTS = 2790;
+    std::vector<double> dom_xs, dom_ys, dom_zs;
+    double mean_x = 0, mean_y = 0, mean_z = 0;
+    for(int i = 0; i < NPMTS; i++){
+        TVector3 pmtpos = pmtinfo->GetPosition(i);
+        mean_x += pmtpos[0]/31;
+        mean_y += pmtpos[1]/31;
+        mean_z += pmtpos[2]/31;
+        if((i % 31) == 30) {
+            dom_xs.push_back(mean_x);
+            dom_ys.push_back(mean_y);
+            dom_zs.push_back(mean_z);
+            mean_x = 0.;
+            mean_y = 0.;
+            mean_z = 0.;
+        }
+    }
+
     // ttree at the dom level
     TH1D* hevts = new TH1D("nevts", "Total Evts", 1, 0, 1);
     TTree* tout = new TTree("doms", "doms");
 
-    int dom_x, dom_y, dom_z;
+    float dom_x, dom_y, dom_z;
     int npmts, npe, pe_min, pe_spread, pe_max;
     float pe_mean, pe_rms;
     float t_min, t_spread, t_mean, t_rms;
     int ndoms;
     int event_id;
     float vtxX, vtxY, vtxZ;
+    float momX, momY, momZ;
+    float muE;
     float rock_wgt;
 
     tout->Branch("event_id", &event_id, "event_id/I");
     tout->Branch("vtxX", &vtxX, "vtxX/F");
     tout->Branch("vtxY", &vtxY, "vtxY/F");
     tout->Branch("vtxZ", &vtxZ, "vtxZ/F");
+    tout->Branch("momX", &momX, "momX/F");
+    tout->Branch("momY", &momY, "momY/F");
+    tout->Branch("momZ", &momZ, "momZ/F");
+    tout->Branch("muE", &muE, "muE/F");
     tout->Branch("rock_wgt", &rock_wgt, "rock_wgt/F");
-    tout->Branch("dom_x", &dom_x, "dom_x/I");
-    tout->Branch("dom_y", &dom_y, "dom_y/I");
-    tout->Branch("dom_z", &dom_z, "dom_z/I");
+    tout->Branch("dom_x", &dom_x, "dom_x/F");
+    tout->Branch("dom_y", &dom_y, "dom_y/F");
+    tout->Branch("dom_z", &dom_z, "dom_z/F");
     tout->Branch("npmts", &npmts, "npmts/I");
     tout->Branch("npe", &npe, "npe/I");
     tout->Branch("pe_min", &pe_min, "pe_min/I");
@@ -122,6 +153,10 @@ void process(std::string pattern, std::string outfilename){
         vtxX = -100000.;
         vtxY = -100000.;
         vtxZ = -100000.;
+        momX = -100000.;
+        momY = -100000.;
+        momZ = -100000.;
+        muE = -5;
         for (int pid = 0; pid < mcpcount; pid++) {
             RAT::DS::MCParticle *particle = mc->GetMCParticle(pid);
 
@@ -130,16 +165,27 @@ void process(std::string pattern, std::string outfilename){
                 vtxX = mcpos.X();
                 vtxY = mcpos.Y();
                 vtxZ = mcpos.Z();
+                TVector3 mcmom = particle->GetMomentum();
+                momX = mcmom.X();
+                momY = mcmom.Y();
+                momZ = mcmom.Z();
+                muE = particle->GetKE()/1000.;
             }
         }
         rock_wgt = 1.;
         if(((pattern.find("rockbed") != string::npos) || (pattern.find("equalx") != string::npos) || (pattern.find("aframe") != string::npos)) && (pattern.find("cosmic") == string::npos)){
             // up-weight rock events manually
-            if(vtxY > -22000. && vtxY < -12000. && (pattern.find("short") == string::npos)){
+            if(vtxY > -23000. && vtxY < -13000. && (pattern.find("short") == string::npos)){
                 rock_wgt = xsec_weight;
             }
+            // if(vtxY > -13000. && vtxY < -7000. && (pattern.find("short") == string::npos) && ((pattern.find("hex") == string::npos) && (pattern.find("box") == string::npos))){
+            //     rock_wgt = 0.;
+            // }
             if(vtxY > -22500. && vtxY < -12500. && (pattern.find("short") != string::npos)){
-                rock_wgt = (float)xsec_weight;
+                rock_wgt = xsec_weight;
+            }
+            if(vtxY > -17000. && vtxY < -7000. && ((pattern.find("hex") != string::npos) || (pattern.find("box") != string::npos))){
+                rock_wgt = xsec_weight;
             }
         }
         nwgt_events += rock_wgt;
@@ -169,9 +215,12 @@ void process(std::string pattern, std::string outfilename){
 
 
         for(auto &dom: dom_pmts){
-            dom_x = GetDomX(dom.first);
-            dom_y = GetDomY(dom.first);
-            dom_z = GetDomZ(dom.first);
+            // dom_x = GetDomX(dom.first);
+            // dom_y = GetDomY(dom.first);
+            // dom_z = GetDomZ(dom.first);
+            dom_x = dom_xs[dom.first];
+            dom_y = dom_ys[dom.first];
+            dom_z = dom_zs[dom.first];
             npmts = dom.second;
             std::vector<int> dom_pe = dom_pes[dom.first];
             std::vector<float> dom_time = dom_times[dom.first];
