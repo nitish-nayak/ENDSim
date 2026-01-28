@@ -2,14 +2,14 @@ import ROOT
 import pandas as pd
 import numpy as np
 
-t_signal = ROOT.RDataFrame("doms", "bdtinput_signal_aframe.root")
-t_bkg = ROOT.RDataFrame("doms", "bdtinput_bkg_aframe.root")
+t_signal = ROOT.RDataFrame("doms", "bdtinput_signal_aframe_spacing5m_hex_DU_v2.root")
+t_bkg = ROOT.RDataFrame("doms", "bdtinput_bkg_aframe_spacing5m_hex_DU_v2.root")
 
 df_signal = pd.DataFrame(t_signal.AsNumpy())
 df_bkg = pd.DataFrame(t_bkg.AsNumpy())
 
 colagg = {}
-info_cols = ['rock_wgt', 'vtxX', 'vtxY', 'vtxZ']
+info_cols = ['rock_wgt', 'vtxX', 'vtxY', 'vtxZ', 'momX', 'momY', 'momZ', 'muE']
 for col in df_signal.columns:
     if col == "event_id":
         continue
@@ -52,13 +52,23 @@ X_bkg = df_to_numpy(df_bkg)  # shape (n_bkg,  L * n_cols)
 df_signal_info = df_signal[info_cols]
 df_bkg_info = df_bkg[info_cols]
 
+#  def apply_trigger(X):
+#      #  # older tree
+#      #  ndoms_pecut = np.sum(X[:, 3*feature_vecsize:4*feature_vecsize] >= 3, axis=1)
+#      # newer tree, 100ns for pe
+#      ndoms_pecut = np.sum(X[:, 6*max_len:7*max_len] >= 3, axis=1)
+#      return np.where(ndoms_pecut >= 3)
+#  X_signal = X_signal[apply_trigger(X_signal)]
+#  X_bkg = X_bkg[apply_trigger(X_bkg)]
+#  df_signal_info = df_signal[info_cols][apply_trigger(X_signal)]
+#  df_bkg_info = df_bkg[info_cols][apply_trigger(X_bkg)]
 print(X_signal.shape, X_bkg.shape)
 
-np.save('signal_aframe.npy', X_signal)
-np.save('bkg_aframe.npy', X_bkg)
-df_signal_info.to_csv('signal_aframe_info.csv', index=False)
-df_bkg_info.to_csv('bkg_aframe_info.csv', index=False)
+np.save('signal_aframe_spacing5m_hex_DU_v2.npy', X_signal)
+np.save('bkg_aframe_spacing5m_hex_DU_v2.npy', X_bkg)
+df_signal_info.to_csv('signal_aframe_spacing5m_hex_DU_v2_info.csv', index=False)
+df_bkg_info.to_csv('bkg_aframe_spacing5m_hex_DU_v2_info.csv', index=False)
 
-with open('info_aframe.txt', 'w') as info:
+with open('info_aframe_spacing5m_hex_DU_v2.txt', 'w') as info:
     info.write('Columns : %s'%str(list(df_signal.columns)))
     info.write('\nArray Length: %d'%max_len)

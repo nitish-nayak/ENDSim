@@ -55,6 +55,9 @@ void process(std::string pattern, std::string outfilename){
     std::vector<double> bound_x = {-25000., 30000.};
     std::vector<double> bound_y = {-23000., 23000.};
     std::vector<double> bound_z = {-25000., 105000.};
+    std::vector<double> lenbound_x = {0., 60000.};
+    std::vector<double> lenbound_y = {0., 23000.};
+    std::vector<double> lenbound_z = {0., 130000.};
     std::vector<double> detbound_x = {0., 6000.};
     std::vector<double> detbound_y = {-500., 500.};
     std::vector<double> detbound_z = {0, 76500.};
@@ -121,6 +124,10 @@ void process(std::string pattern, std::string outfilename){
 
     TH2D* hxy = new TH2D("hxy", "", 100, bound_x[0], bound_x[1], 100, bound_y[0], bound_y[1]);
     TH2D* hyz = new TH2D("hyz", "", 100, bound_z[0], bound_z[1], 100, bound_y[0], bound_y[1]);
+    TH2D* hlenxy = new TH2D("hlenxy", "", 100, lenbound_x[0], lenbound_x[1], 100, lenbound_y[0], lenbound_y[1]);
+    TH2D* hxz = new TH2D("hxz", "", 100, bound_z[0], bound_z[1], 100, bound_x[0], bound_x[1]);
+    TH2D* hTotlenxy = new TH2D("hTotlenxy", "", 100, lenbound_x[0], lenbound_x[1], 100, lenbound_y[0], lenbound_y[1]);
+    TH2D* hTotxz = new TH2D("hTotxz", "", 100, bound_z[0], bound_z[1], 100, bound_x[0], bound_x[1]);
     TH2D* he_xy3 = new TH2D("he_xy_dom3", "", 100, bound_x[0], bound_x[1], 100, bound_y[0], bound_y[1]);
     TH2D* he_xy4 = new TH2D("he_xy_dom4", "", 100, bound_x[0], bound_x[1], 100, bound_y[0], bound_y[1]);
     TH2D* he_xy5 = new TH2D("he_xy_dom5", "", 100, bound_x[0], bound_x[1], 100, bound_y[0], bound_y[1]);
@@ -156,6 +163,9 @@ void process(std::string pattern, std::string outfilename){
         double vtxX = -100000.;
         double vtxY = -100000.;
         double vtxZ = -100000.;
+        double lenX = -100000.;
+        double lenY = -100000.;
+        double lenZ = -100000.;
         double muE = -5.;
         for (int pid = 0; pid < mcpcount; pid++) {
             RAT::DS::MCParticle *particle = mc->GetMCParticle(pid);
@@ -165,22 +175,38 @@ void process(std::string pattern, std::string outfilename){
                 vtxX = mcpos.X();
                 vtxY = mcpos.Y();
                 vtxZ = mcpos.Z();
+                TVector3 mcendpos = particle->GetEndPosition();
+                lenX = std::abs(mcendpos.X()-vtxX);
+                lenY = std::abs(mcendpos.Y()-vtxY);
+                lenZ = std::abs(mcendpos.Z()-vtxZ);
                 muE = particle->GetKE() + 105.7;
             }
         }
         double rock_wgt = 1.;
         if(((pattern.find("rockbed") != string::npos) || (pattern.find("equalx") != string::npos) || (pattern.find("aframe") != string::npos)) && (pattern.find("cosmic") == string::npos)){
             // up-weight rock events manually
-            if(vtxY > -22000. && vtxY < -12000. && (pattern.find("short") == string::npos)){
+            if(vtxY > -23000. && vtxY < -13000. && (pattern.find("short") == string::npos)){
                 rock_wgt = xsec_weight;
             }
+            // if(vtxY > -13000. && vtxY < -7000. && (pattern.find("short") == string::npos) && ((pattern.find("hex") == string::npos) && (pattern.find("box") == string::npos))){
+            //     rock_wgt = 0.;
+            // }
             if(vtxY > -22500. && vtxY < -12500. && (pattern.find("short") != string::npos)){
                 rock_wgt = xsec_weight;
             }
+            if(vtxY < -9000 && (pattern.find("DU") != string::npos)){
+                rock_wgt = 0.;
+            }
+            // if(vtxY > -17000. && vtxY < -7000. && ((pattern.find("hex") != string::npos) || (pattern.find("box") != string::npos))){
+            //     rock_wgt = xsec_weight;
+            // }
+
         }
 
         hTotxy->Fill(vtxX, vtxY, rock_wgt);
         hTotyz->Fill(vtxZ, vtxY, rock_wgt);
+        hTotlenxy->Fill(lenX, lenY, rock_wgt);
+        hTotxz->Fill(vtxZ, vtxX, rock_wgt);
         hdoms_eff_denom->Fill(vtxX, vtxY, vtxZ, rock_wgt);
         // Loop over all hit PMTs
         // std::vector<int> dom_ids;
@@ -206,7 +232,10 @@ void process(std::string pattern, std::string outfilename){
                 int dom_i = ENDpmt2dom(pmt_i);
                 // For End, type=0 is 8'', type=1 is 12''
                 int type = mcpmt->GetType();
-                if(type == 0) continue; // Skip the HQE PMTs in this example
+                if(type == 0) {
+                    std::cout << "Found 8in" << "\n";
+                    continue; // Skip the HQE PMTs in this example
+                }
                 if(npe_i >= 1) {
                     dom_pes[dom_i] += npe_i;
                     if(dom_pes[dom_i] >= 3)
@@ -230,6 +259,8 @@ void process(std::string pattern, std::string outfilename){
         }
         hxy->Fill(vtxX, vtxY, unique_doms.size()*rock_wgt);
         hyz->Fill(vtxZ, vtxY, unique_doms.size()*rock_wgt);
+        hlenxy->Fill(lenX, lenY, unique_doms.size()*rock_wgt);
+        hxz->Fill(vtxZ, vtxX, unique_doms.size()*rock_wgt);
         // Let's try 5 DOM cut as a trigger
         if(unique_doms.size() > 3) {
             he_xy3->Fill(vtxX, vtxY, rock_wgt);
@@ -250,16 +281,25 @@ void process(std::string pattern, std::string outfilename){
             hmuE->Fill(muE*1.E-3, ntot_denoms, rock_wgt);
     }
 
+    hxy->Divide(hTotxy);
+    hyz->Divide(hTotyz);
+    hlenxy->Divide(hTotlenxy);
+    hxz->Divide(hTotxz);
+
     std::cout << "Writing to File!" << std::endl;
     TFile* outFile = new TFile(outfilename.c_str(), "recreate");
     hnDoms->Write("hnDoms");
     hxy->Write("fid_xy");
     hyz->Write("fid_yz");
+    hlenxy->Write("len_xy");
+    hxz->Write("fid_xz");
     he_xy3->Write("fid_event3_xy");
     he_xy4->Write("fid_event4_xy");
     he_xy5->Write("fid_event5_xy");
     he_xy6->Write("fid_event6_xy");
     he_xy7->Write("fid_event7_xy");
+    hTotlenxy->Write("len_tot_xy");
+    hTotxz->Write("fid_tot_xz");
     hTotxy->Write("fid_tot_xy");
     hTotyz->Write("fid_tot_yz");
     hdoms_eff_denom->Write("fid_tot_xyz");

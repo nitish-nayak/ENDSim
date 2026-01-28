@@ -106,16 +106,20 @@ void process(std::string pattern, std::string outfilename){
 
     float dom_x, dom_y, dom_z;
     int npmts, npe, pe_min, pe_spread, pe_max;
+    int npmts_50, npmts_100, npe_50, npe_100;
     float pe_mean, pe_rms;
     float t_min, t_spread, t_mean, t_rms;
     int ndoms;
     int event_id;
+    int du_id, dom_id;
     float vtxX, vtxY, vtxZ;
     float momX, momY, momZ;
     float muE;
     float rock_wgt;
 
     tout->Branch("event_id", &event_id, "event_id/I");
+    tout->Branch("dom_id", &dom_id, "dom_id/I");
+    tout->Branch("du_id", &du_id, "du_id/I");
     tout->Branch("vtxX", &vtxX, "vtxX/F");
     tout->Branch("vtxY", &vtxY, "vtxY/F");
     tout->Branch("vtxZ", &vtxZ, "vtxZ/F");
@@ -136,6 +140,10 @@ void process(std::string pattern, std::string outfilename){
     tout->Branch("t_spread", &t_spread, "t_spread/F");
     tout->Branch("t_mean", &t_mean, "t_mean/F");
     tout->Branch("t_rms", &t_rms, "t_rms/F");
+    tout->Branch("npmts_50", &npmts_50, "npmts_50/I");
+    tout->Branch("npe_50", &npe_50, "npe_50/I");
+    tout->Branch("npmts_100", &npmts_100, "npmts_100/I");
+    tout->Branch("npe_100", &npe_100, "npe_100/I");
 
     // Loop over all triggered events
     double nwgt_events = 0;
@@ -184,9 +192,12 @@ void process(std::string pattern, std::string outfilename){
             if(vtxY > -22500. && vtxY < -12500. && (pattern.find("short") != string::npos)){
                 rock_wgt = xsec_weight;
             }
-            if(vtxY > -17000. && vtxY < -7000. && ((pattern.find("hex") != string::npos) || (pattern.find("box") != string::npos))){
-                rock_wgt = xsec_weight;
+            if(vtxY < -9000 && (pattern.find("DU") != string::npos)){
+                rock_wgt = 0.;
             }
+            // if(vtxY > -17000. && vtxY < -7000. && ((pattern.find("hex") != string::npos) || (pattern.find("box") != string::npos))){
+            //     rock_wgt = xsec_weight;
+            // }
         }
         nwgt_events += rock_wgt;
 
@@ -218,15 +229,45 @@ void process(std::string pattern, std::string outfilename){
             // dom_x = GetDomX(dom.first);
             // dom_y = GetDomY(dom.first);
             // dom_z = GetDomZ(dom.first);
+            dom_id = dom.first;
+            du_id = dom.first/18;
             dom_x = dom_xs[dom.first];
             dom_y = dom_ys[dom.first];
             dom_z = dom_zs[dom.first];
             npmts = dom.second;
+            npmts_50 = 0;
+            npmts_100 = 0;
+            npe_50 = 0;
+            npe_100 = 0;
             std::vector<int> dom_pe = dom_pes[dom.first];
             std::vector<float> dom_time = dom_times[dom.first];
 
             std::sort(dom_pe.begin(), dom_pe.end());
             std::sort(dom_time.begin(), dom_time.end());
+            float init_time = dom_time.at(0);
+            for(int i = 0; i < (int)dom_time.size(); i++){
+                float pmt_time = dom_time.at(i);
+                int pmt_pe = dom_pe.at(i);
+                if(pmt_time - init_time <= 50){
+                    npmts_50 += 1;
+                    npe_50 += pmt_pe;
+                    npmts_100 += 1;
+                    npe_100 += pmt_pe;
+                }
+                else if(pmt_time - init_time <= 100){
+                    npmts_100 += 1;
+                    npe_100 += pmt_pe;
+                    npmts_50 = 0;
+                    npe_50 = pmt_pe;
+                }
+                else {
+                    npmts_50 = 0;
+                    npe_50 = pmt_pe;
+                    npmts_100 = 0;
+                    npe_100 = pmt_pe;
+                }
+                init_time = pmt_time;
+            }
 
             npe = std::accumulate(dom_pe.begin(), dom_pe.end(), 0);
             t_mean = std::accumulate(dom_time.begin(), dom_time.end(), 0)/dom_time.size();

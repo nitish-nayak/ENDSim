@@ -5,39 +5,50 @@ from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix, classifi
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 import time
 import ROOT
 import pandas as pd
+from math import *
 
-feature_vecsize = 88
+#  feature_vecsize = 59 # DUstructure
+feature_vecsize = 88 # final geometry
+#  feature_vecsize = 62
 
 # some normalization calculations
 fvs = {"pen_small" : np.array([[-22, 22], [-22, 22], [-20, 90]]),
        "pen_small_equalx_short" : np.array([[-22.5, 22.5], [-22.5, 22.5], [-20, 64.5]]),
-       "aframe_spacing5m" : np.array([[-23, 23], [-23, 23], [-20, 70]])
+       "aframe_spacing5m" : np.array([[-23, 23], [-23, 23], [-20, 70]]),
+       "aframe_spacing5m_box_wRod" : np.array([[-24, 24], [-15.5, 21.5], [-20, 66]]),
+       "aframe_spacing5m_box" : np.array([[-24, 24], [-15.5, 21.5], [-20, 66]]),
+       "aframe_spacing5m_DUstructure" : np.array([[-24, 24], [-9, 21.5], [-20, 66]]),
+       "aframe_spacing5m_hex_DU_v2" : np.array([[-24, 24], [-9, 21.5], [-20, 66]]),
       }
 
 def mass(V, conf="long"):
-    if "rockbed" not in conf and "equalx" not in conf and "aframe" not in conf:
+    if ("rockbed" not in conf and "equalx" not in conf and "aframe" not in conf) or ("DU" in conf):
         return (V[0][1] - V[0][0])*(V[1][1] - V[1][0])*(V[2][1] - V[2][0])*997./1.E6
     else:
         return (V[0][1] - V[0][0])*(V[2][1] - V[2][0])*((V[1][1] - (V[1][0]+10))*997. + (10)*2700.)/1.E6
 
 frates = ROOT.TFile("/home/nitish/public_html/shared/uboone/flugg_study/for_milind/plots_pretty/data/event_rates_lp3_depth_numu.root", "read")
 rate_perPOT_perKT = frates.Get("h_numu_lp3_me").Integral()/10.
-rate_perPOT = rate_perPOT_perKT*mass(fvs["aframe_spacing5m"], "aframe_spacing5m")
+rate_perPOT = rate_perPOT_perKT*mass(fvs["aframe_spacing5m_hex_DU_v2"], "aframe_spacing5m_hex_DU_v2")
 
 cosmic_surface = {
                     "pen_small_equalx_short" : np.array([[-30., 30.], [-30., 100.]]),
-                    "aframe_spacing5m" : np.array([[-30., 30.], [-30., 80.]])
+                    "aframe_spacing5m" : np.array([[-30., 30.], [-30., 80.]]),
+                    "aframe_spacing5m_box" : np.array([[-30., 30.], [-30., 80.]]),
+                    "aframe_spacing5m_DUstructure" : np.array([[-30., 30.], [-30., 80.]]),
+                    "aframe_spacing5m_hex_DU_v2" : np.array([[-30., 30.], [-30., 80.]])
                  }
 def area(surface):
     return (surface[0][1]-surface[0][0])*(surface[1][1]-surface[1][0])
 cosmic_rates = {conf: 1.5*area(cosmic_surface[conf]) for conf in cosmic_surface}
-cosmic_rate = cosmic_rates["aframe_spacing5m"]
+cosmic_rate = cosmic_rates["aframe_spacing5m_hex_DU_v2"]
 
-fsignal = ROOT.TFile("bdtinput_signal_aframe.root", "read")
-fbkg = ROOT.TFile("bdtinput_bkg_aframe.root", "read")
+fsignal = ROOT.TFile("bdtinput_signal_aframe_spacing5m_hex_DU_v2.root", "read")
+fbkg = ROOT.TFile("bdtinput_bkg_aframe_spacing5m_hex_DU_v2.root", "read")
 tot_signal = fsignal.Get("nevts").Integral()
 tot_bkg = fbkg.Get("nevts").Integral()
 
@@ -54,31 +65,32 @@ norm_bkg = 86400*spill_rate*spill_length/livetime
 
 print("Normalization Factors : ", norm_signal, norm_bkg)
 
-outfolder = "/home/nitish/public_html/shared/end/efficiency/domPE/bdt_aframe/3dom_3pe/"
+outfolder = "/home/nitish/public_html/shared/end/efficiency/domPE/bdt_aframe_spacing5m_hex_DU_v2/3dom_3pe_50/"
 
 # Load dataset
-X_signal = np.load('signal_aframe.npy')
-X_bkg = np.load('bkg_aframe.npy')
+X_signal = np.load('signal_aframe_spacing5m_hex_DU_v2.npy')
+X_bkg = np.load('bkg_aframe_spacing5m_hex_DU_v2.npy')
 X_signal[np.isinf(X_signal)] = -5
 X_bkg[np.isinf(X_bkg)] = -5
 
 # aux info
-df_signal = pd.read_csv('signal_aframe_info.csv').to_numpy()
-df_bkg = pd.read_csv('bkg_aframe_info.csv').to_numpy()
+df_signal = pd.read_csv('signal_aframe_spacing5m_hex_DU_v2_info.csv').to_numpy()
+df_bkg = pd.read_csv('bkg_aframe_spacing5m_hex_DU_v2_info.csv').to_numpy()
+X_info = np.vstack([df_signal, df_bkg])
+signal_eff_corr = tot_signal/(df_signal[:,0].sum())
+bkg_eff_corr = tot_bkg/(df_bkg[:,0].sum())
+print("No Activity Efficiency Correction : ", signal_eff_corr, bkg_eff_corr)
+del df_signal, df_bkg
 
 # Build label vectors
 y_signal = np.ones(len(X_signal),  dtype=int)
 y_bkg = np.zeros(len(X_bkg), dtype=int)
-
 print("Signal vs Background Statistics : ", len(y_signal), len(y_bkg))
 
 # Stack together
 X = np.vstack([X_signal, X_bkg])              # shape (n_signal + n_bkg, L * n_cols)
 y = np.concatenate([y_signal, y_bkg])         # shape (n_signal + n_bkg,)
-X_info = np.vstack([df_signal, df_bkg])
-signal_eff_corr = tot_signal/(df_signal[:,0].sum())
-bkg_eff_corr = tot_bkg/(df_bkg[:,0].sum())
-print("No Activity Efficiency Correction : ", signal_eff_corr, bkg_eff_corr)
+del X_signal, X_bkg
 
 # Split: 60% train, 20% validation, 20% test
 X_train, X_temp, y_train, y_temp, info_train, info_temp = train_test_split(
@@ -132,11 +144,16 @@ bst = xgb.train(
 print("Time Taken for Training (s) : ", time.time()-start)
 
 # Save model for later inference
-bst.save_model('xgb_model_aframe.json')
+bst.save_model('xgb_model_aframe_spacing5m_hex_DU_v2.json')
 
 def apply_trigger(X):
-    ndoms_pecut = np.sum(X[:, 3*feature_vecsize:4*feature_vecsize] >= 3, axis=1)
-    return np.where(ndoms_pecut > 3)
+    #  # older tree
+    #  ndoms_pecut = np.sum(X[:, 3*feature_vecsize:4*feature_vecsize] >= 3, axis=1)
+    #  # newer tree, 100ns for pe
+    #  ndoms_pecut = np.sum(X[:, 6*feature_vecsize:7*feature_vecsize] >= 3, axis=1)
+    # newer tree, 50ns for pe
+    ndoms_pecut = np.sum(X[:, 7*feature_vecsize:8*feature_vecsize] >= 3, axis=1)
+    return np.where(ndoms_pecut >=3)
 
 # Evaluate on the test set
 y_pred_prob = bst.predict(dtest)
@@ -152,6 +169,8 @@ print(classification_report(y_test, y_pred))
 
 # Plot and save ROC curve
 fpr, tpr, _ = roc_curve(y_test, y_pred_prob)
+np.save('aframe_spacing5m_hex_DU_v2_fpr.npy', fpr)
+np.save('aframe_spacing5m_hex_DU_v2_tpr.npy', tpr)
 plt.figure()
 plt.plot(fpr, tpr)
 plt.plot([0, 1], [0, 1], '--')
@@ -161,6 +180,37 @@ plt.title('ROC Curve')
 plt.grid(True)
 plt.savefig(outfolder+'roc_curve.pdf')
 
+def angle(t_info):
+    mom_magnitude = np.linalg.norm(t_info[:,4:7], axis=1)
+    cos_angle = np.clip(t_info[:,6]/mom_magnitude, -1.0, 1.0)
+    return np.arccos(cos_angle)*180.0/pi
+
+info_angle = angle(info_test)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+hist1 = ax1.hist2d(y_pred_prob[y_test==1], info_angle[y_test==1], bins=30, cmap='viridis', norm=colors.LogNorm())
+ax1.set_title('Beam')
+hist2 = ax2.hist2d(y_pred_prob[y_test==0], info_angle[y_test==0], bins=30, cmap='viridis', norm=colors.LogNorm())
+ax2.set_title('Cosmics')
+ax1.set_xlabel('xgboost Score')
+ax1.set_ylabel('Muon Angle (Degrees)')
+ax2.set_xlabel('xgboost Score')
+ax2.set_ylabel('Muon Angle (Degrees)')
+plt.colorbar(hist1[3], ax=ax1)
+plt.colorbar(hist2[3], ax=ax2)
+plt.savefig(outfolder+'bdt_anglecorr.pdf')
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+hist1 = ax1.hist2d(y_pred_prob[y_test==1], info_test[:,7][y_test==1], bins=30, cmap='viridis', norm=colors.LogNorm())
+ax1.set_title('Beam')
+hist2 = ax2.hist2d(y_pred_prob[y_test==0], info_test[:,7][y_test==0], bins=30, cmap='viridis', norm=colors.LogNorm())
+ax2.set_title('Cosmics')
+ax1.set_xlabel('xgboost Score')
+ax1.set_ylabel('Muon KE (GeV)')
+ax2.set_xlabel('xgboost Score')
+ax2.set_ylabel('Muon KE (GeV)')
+plt.colorbar(hist1[3], ax=ax1)
+plt.colorbar(hist2[3], ax=ax2)
+plt.savefig(outfolder+'bdt_energycorr.pdf')
 
 trigger_cut = apply_trigger(X)
 y_pred_prob = y_pred_prob[trigger_cut]
@@ -185,33 +235,61 @@ plt.legend()
 plt.grid(True)
 plt.savefig(outfolder+'prob_hist.pdf')
 
-# get an idea of s/n over fiducial volume
-y_cut = 4.0 #m
-x_cuts = np.linspace(1, 10, 10)
-
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-for x_cut in x_cuts:
-    inFV = (np.abs(info_test[:, 1]) <= 1000.0*x_cut) & (info_test[:, 2] <= 1000.0*y_cut)
-    signal_inFV = y_pred_prob[inFV & (y_test == 1)]
-    bkg_inFV = y_pred_prob[inFV & (y_test == 0)]
-    signal_inFV_wgts = signal_evtrate_factor*norm_signal*info_test[:, 0][inFV & (y_test == 1)]
-    bkg_inFV_wgts = bkg_evtrate_factor*norm_bkg*info_test[:, 0][inFV & (y_test == 0)]
-
-    # bin them
-    signal_hist, bin_edges = np.histogram(signal_inFV, bins=5, weights=signal_inFV_wgts)
-    bkg_hist, _ = np.histogram(bkg_inFV, bins=5, weights=bkg_inFV_wgts)
-    ratio = np.divide(signal_hist, signal_hist+bkg_hist, where=(signal_hist+bkg_hist != 0))
-    ax1.hist(bin_edges[:-1], bin_edges, weights=ratio, label='Canopy Width : %d m'%(2*x_cut), histtype='step')
-    ax1.set_xlabel('xgboost Score')
-    ax1.set_ylabel('S / (S + B)')
-    ax1.legend(loc='upper left')
-
-    ax2.hist(signal_inFV, bins=50, weights=signal_inFV_wgts, cumulative=-1, label='Canopy Width: %d m'%(2*x_cut), histtype='step')
-    ax2.axhline(y=2, color='red', linestyle='--', label='Program Metric')
-    ax2.set_xlabel('xgboost Score')
-    ax2.set_ylabel('Cumulative Signal Counts per Day')
-plt.title('Canopy Height at y=4m Always (Only Width is Varied)')
-plt.savefig(outfolder+'prob_canopy.pdf')
+#  # get an idea of s/n over fiducial volume
+#  y_cut = 4.0 #m
+#  x_cuts = np.linspace(1, 10, 10)
+#
+#  fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+#  for x_cut in x_cuts:
+#      inFV = (np.abs(info_test[:, 1]) <= 1000.0*x_cut) & (info_test[:, 2] <= 1000.0*y_cut)
+#      signal_inFV = y_pred_prob[inFV & (y_test == 1)]
+#      bkg_inFV = y_pred_prob[inFV & (y_test == 0)]
+#      signal_inFV_wgts = signal_evtrate_factor*norm_signal*info_test[:, 0][inFV & (y_test == 1)]
+#      bkg_inFV_wgts = bkg_evtrate_factor*norm_bkg*info_test[:, 0][inFV & (y_test == 0)]
+#
+#      # bin them
+#      signal_hist, bin_edges = np.histogram(signal_inFV, bins=5, weights=signal_inFV_wgts)
+#      bkg_hist, _ = np.histogram(bkg_inFV, bins=5, weights=bkg_inFV_wgts)
+#      ratio = np.divide(signal_hist, signal_hist+bkg_hist, where=(signal_hist+bkg_hist != 0))
+#      ax1.hist(bin_edges[:-1], bin_edges, weights=ratio, label='Canopy Width : %d m'%(2*x_cut), histtype='step')
+#      ax1.set_xlabel('xgboost Score')
+#      ax1.set_ylabel('S / (S + B)')
+#      ax1.legend(loc='upper left')
+#
+#      ax2.hist(signal_inFV, bins=50, weights=signal_inFV_wgts, cumulative=-1, label='Canopy Width: %d m'%(2*x_cut), histtype='step')
+#      ax2.axhline(y=2, color='red', linestyle='--', label='Program Metric')
+#      ax2.set_xlabel('xgboost Score')
+#      ax2.set_ylabel('Cumulative Signal Counts per Day')
+#  plt.title('Canopy Height at y=4m Always (Only Width is Varied)')
+#  plt.savefig(outfolder+'prob_canopy.pdf')
+#
+#  x_cut = 4.0 #m
+#  y_floors = np.linspace(-3, -13, 11)
+#  fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+#  for y_floor_cut in y_floors:
+#      inFV = (info_test[:, 2] >= 1000.0*y_floor_cut) #& (info_test[:, 2] <= 1000.0*y_cut) & (np.abs(info_test[:, 1]) <= 1000.0*x_cut) # assume 6m canopy width
+#      signal_inFV = y_pred_prob[inFV & (y_test == 1)]
+#      bkg_inFV = y_pred_prob[inFV & (y_test == 0)]
+#      signal_inFV_wgts = signal_evtrate_factor*norm_signal*info_test[:, 0][inFV & (y_test == 1)]
+#      bkg_inFV_wgts = bkg_evtrate_factor*norm_bkg*info_test[:, 0][inFV & (y_test == 0)]
+#
+#      # bin them
+#      signal_hist, bin_edges = np.histogram(signal_inFV, bins=5, weights=signal_inFV_wgts)
+#      bkg_hist, _ = np.histogram(bkg_inFV, bins=5, weights=bkg_inFV_wgts)
+#      ratio = np.divide(signal_hist, signal_hist+bkg_hist, where=(signal_hist+bkg_hist != 0))
+#      ax1.hist(bin_edges[:-1], bin_edges, weights=ratio, label='Floor Height : %d m'%(-1*y_floor_cut - 3), histtype='step')
+#      ax1.set_xlabel('xgboost Score')
+#      ax1.set_ylabel('S / (S + B)')
+#      #  ax1.legend(loc='upper left')
+#
+#      ax2.hist(signal_inFV, bins=50, weights=signal_inFV_wgts, cumulative=-1, label='Floor Height: %d m'%(-1*y_floor_cut - 3), histtype='step')
+#      ax2.set_xlabel('xgboost Score')
+#      ax2.set_ylabel('Cumulative Signal Counts per Day')
+#      ax2.legend(loc='lower center')
+#      ax2.axhline(y=2, color='red', linestyle='--')
+#  #  plt.title('Canopy Width at x=(-4, 4)m and Height at y=4m')
+#  plt.title('No Canopy')
+#  plt.savefig(outfolder+'prob_floor_nocanopy.pdf')
 
 thresholds = np.linspace(0, 1, 101)
 eff = []
@@ -249,21 +327,21 @@ importance = bst.get_score(importance_type='gain')  # or 'weight', 'cover'
 keys = list(importance.keys())
 values = list(importance.values())
 indices = np.argsort(values)[::-1]
-features = ['dom_x', 'dom_y', 'dom_z', 'npe', 'npmts', 'pe_min', 'pe_rms', 'pe_spread', 't_mean', 't_min', 't_rms', 't_spread']
-keys_names = []
-for i in indices:
-    key = int(re.sub(r'f([0-9].*)', '\\1', keys[i]))
-    f_i = key // feature_vecsize
-    f_ij = key % feature_vecsize
-    keys_names.append('%s_%d' % (features[f_i], f_ij))
-
-plt.figure(figsize=(10, 6))
-plt.title('Feature Importance by Gain')
-plt.bar(keys_names, [values[i] for i in indices])
-plt.xticks(rotation=90)
-plt.tight_layout()
-plt.savefig(outfolder+'feature_importance.pdf')
-
+#  features = ['dom_x', 'dom_y', 'dom_z', 'npe', 'npmts', 'pe_min', 'pe_rms', 'pe_spread', 't_mean', 't_min', 't_rms', 't_spread']
+#  keys_names = []
+#  for i in indices:
+#      key = int(re.sub(r'f([0-9].*)', '\\1', keys[i]))
+#      f_i = key // feature_vecsize
+#      f_ij = key % feature_vecsize
+#      keys_names.append('%s_%d' % (features[f_i], f_ij))
+#
+#  plt.figure(figsize=(10, 6))
+#  plt.title('Feature Importance by Gain')
+#  plt.bar(keys_names, [values[i] for i in indices])
+#  plt.xticks(rotation=90)
+#  plt.tight_layout()
+#  plt.savefig(outfolder+'feature_importance.pdf')
+#
 #  print("Importances : ")
 #  for i in indices:
 #      print(keys_names[i], values[i])

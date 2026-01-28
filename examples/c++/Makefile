@@ -19,6 +19,9 @@ pmt_event: pmt_event.cc
 pmt_bdt: pmt_bdt.cc
 	$(CXX) $(LDFLAGS) -o pmt_bdt pmt_bdt.cc $(CPPFLAGS) -I"/ratpac-setup/local/include/Geant4" $(LDLIBS)
 
+pmt_bdt2: pmt_bdt2.cc
+	$(CXX) $(LDFLAGS) -o pmt_bdt2 pmt_bdt2.cc $(CPPFLAGS) -I"/ratpac-setup/local/include/Geant4" $(LDLIBS)
+
 timing_root_digitizer: timing_root_digitizer.cc
 	$(CXX) $(LDFLAGS) -o timing_root_digitizer timing_root_digitizer.cc $(CPPFLAGS) $(LDLIBS)
 
