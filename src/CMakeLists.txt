@@ -1,6 +1,7 @@
 add_library( END SHARED
   End.cc
   GeoEndFactory.cc
+  GeoGdmlFactory.cc
   #DichroiconArrayFactory.cc
   HitmanProc.cc
   NtupleProc.cc
@@ -15,8 +16,8 @@ target_include_directories( END PUBLIC
 file(COPY include/ DESTINATION ${END_INCLUDE_DIR})
 
 add_executable(end end.cpp)
-target_link_libraries(end PUBLIC 
-  END ${ROOT_LIBRARIES} ${Geant4_LIBRARIES} ${Ratpac_LIBRARIES} ${NLOPT_LIBRARIES})
+target_link_libraries(end PUBLIC
+  END ${ROOT_LIBRARIES} ${Geant4_LIBRARIES} ${Ratpac_LIBRARIES} ${NLOPT_LIBRARIES} ${XercesC_LIBRARIES})
 
 set_target_properties(END end
   PROPERTIES

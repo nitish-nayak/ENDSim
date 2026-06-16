@@ -9,6 +9,7 @@
 #include <RAT/GLG4Gen.hh>
 #include <RAT/Factory.hh>
 #include <GeoEndFactory.hh>
+#include <GeoGdmlFactory.hh>
 //#include <DichroiconArrayFactory.hh>
 #include <HitmanProc.hh>
 #include <NtupleProc.hh>

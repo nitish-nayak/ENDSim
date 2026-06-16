@@ -1,5 +1,5 @@
 #!/bin/bash
 
-export ENDDATA=/home/guang/work/END/ENDSim
-export PATH=/usr/local/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+export ENDDATA=/home/nitish/end/ENDSim
+export PATH=/home/nitish/end/ENDSim/install/bin:$PATH
+export LD_LIBRARY_PATH=/home/nitish/end/ENDSim/install/lib:$LD_LIBRARY_PATH

@@ -73,9 +73,15 @@ else()
 endif()
 include(${ROOT_USE_FILE})
 
-find_package(Geant4 REQUIRED COMPONENTS qt)
+find_package(Geant4 REQUIRED COMPONENTS qt gdml)
 include(${Geant4_USE_FILE})
 include_directories(${Geant4_INCLUDE_DIRS})
+
+# G4GDMLParser (used by GeoGdmlFactory) needs Xerces-C. Its headers must match
+# the version Geant4's libG4gdml was built against, so prepend them ahead of any
+# system Xerces.
+find_package(XercesC REQUIRED)
+include_directories(BEFORE ${XercesC_INCLUDE_DIRS})
 
 find_package(Threads REQUIRED)
 find_package(Ratpac REQUIRED)
@@ -110,16 +116,16 @@ configure_file(${CMAKE_SOURCE_DIR}/config/end.sh.in
 install(DIRECTORY ratdb/ DESTINATION ${ENDSHARE}/ratdb
   PATTERN "ratdb/*")
 
-install(DIRECTORY models/ DESTINATION ${ENDSHARE}/models
-  PATTERN "models/*")
+# install(DIRECTORY models/ DESTINATION ${ENDSHARE}/models
+#   PATTERN "models/*")
 
 # Install the python files
 install(DIRECTORY utilities/ DESTINATION ${ENDSHARE}/utilities
   PATTERN "utilities/*")
 
 # Install the mac files
-install(DIRECTORY macros/ DESTINATION ${ENDSHARE}/macros
-  PATTERN "macros/*")
+# install(DIRECTORY macros/ DESTINATION ${ENDSHARE}/macros
+#   PATTERN "macros/*")
 
 # Install env files
 install(FILES ${END_BINARY_DIR}/end.sh

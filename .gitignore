@@ -1,0 +1,5 @@
+/build/
+/install/
+/examples/
+*.root
+*.log
