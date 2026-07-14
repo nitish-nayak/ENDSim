@@ -60,7 +60,6 @@ G4ThreeVector GeoDOMGelFactory::FitDOMCentre(const std::vector<double> &x, const
 
 G4VSolid *GeoDOMGelFactory::ConstructSolid(RAT::DBLinkPtr table) {
   std::string name = table->GetIndex();
-  G4double r_min = table->GetD("r_min") * CLHEP::mm;  // photocathode-edge depth (~184)
   G4double r_max = table->GetD("r_max") * CLHEP::mm;  // inner glass (~203)
   int lo = table->GetI("start_idx");
   int hi = table->GetI("end_idx");
@@ -73,8 +72,9 @@ G4VSolid *GeoDOMGelFactory::ConstructSolid(RAT::DBLinkPtr table) {
   const std::vector<double> &re = pmt->GetDArray("rho_edge");
   const std::vector<double> &ze = pmt->GetDArray("z_edge");
   int imax = std::max_element(re.begin(), re.end()) - re.begin();
-  double dome_offset = ze[imax];                            // mm along +axis, PMT origin -> dome centre
-  G4double r_dome = (re[imax] + 0.05) * CLHEP::mm;          // bulb radius + 0.05 mm gel/PMT clearance
+  double dome_radius = re[imax];                           // bulb radius (~40)
+  double dome_offset = ze[imax];                           // mm along +axis, PMT origin -> dome centre (~ -36)
+  G4double r_dome = (dome_radius + 0.05) * CLHEP::mm;       // + 0.05 mm gel/PMT clearance for the carving orb
 
   // Same PMTINFO table the pmtarray uses (global positions + radial directions).
   RAT::DBLinkPtr pos = RAT::DB::Get()->GetLink(table->GetS("pos_table"));
@@ -87,6 +87,24 @@ G4VSolid *GeoDOMGelFactory::ConstructSolid(RAT::DBLinkPtr table) {
 
   // DOM centre = this volume's local origin (matches the dom_glass placement).
   G4ThreeVector centre = FitDOMCentre(x, y, z, lo, hi);
+
+  // r_min = shell depth that just reaches the Ø72 photocathode edge. Per PMT:
+  // the dome centre is at radial (mount + dome_offset); the cathode edge sits one
+  // dome radius off the axis at half-width 36, i.e. sqrt(dome_radius^2 - 36^2)
+  // further along the axis and 36 laterally, so its distance from the DOM centre
+  // is sqrt(edge_axial^2 + 36^2). Take the shallowest edge over all PMTs (mount
+  // varies) so the shell covers every photocathode, less a 0.5 mm jitter margin.
+  const double cathode_halfwidth = 36.0;  // Ø72 photocathode radius (datasheet)
+  double axial_from_centre = std::sqrt(dome_radius * dome_radius - cathode_halfwidth * cathode_halfwidth);
+  double r_min_mm = 1e30;
+  for (int i = lo; i <= hi; i++) {
+    double mount = (G4ThreeVector(x[i], y[i], z[i]) - centre).mag();  // |pos - centre|
+    double dome_centre_radial = mount + dome_offset;                 // = mount - 36
+    double edge_axial = dome_centre_radial + axial_from_centre;
+    double edge_radial = std::hypot(edge_axial, cathode_halfwidth);  // sqrt(edge_axial^2 + 36^2)
+    r_min_mm = std::min(r_min_mm, edge_radial);
+  }
+  G4double r_min = (r_min_mm - 0.5) * CLHEP::mm;
 
   G4VSolid *shell = new G4Sphere(name, r_min, r_max, 0., CLHEP::twopi, 0., CLHEP::pi);
 

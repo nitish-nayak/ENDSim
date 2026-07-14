@@ -13,8 +13,9 @@ namespace END {
 //
 // The JSON entry just names the same pos_table and pmt_model the pmtarray uses;
 // the factory reads the PMT positions/directions and the PMT profile, and
-// computes the dome radius, axial offset, and per-PMT dome centres itself:
-//   r_min, r_max, start_idx, end_idx, pos_table, pmt_model
+// computes the dome radius, axial offset, per-PMT dome centres, and r_min (the
+// shell depth that just reaches the Ø72 photocathode edge) itself:
+//   r_max, start_idx, end_idx, pos_table, pmt_model
 class GeoDOMGelFactory : public RAT::GeoSolidFactory {
  public:
   GeoDOMGelFactory() : GeoSolidFactory("domgel"){};

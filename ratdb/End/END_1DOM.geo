@@ -69,8 +69,7 @@ valid_end: [0, 0],
 mother: "dom_inner_3",
 type: "domgel",
 position: [0.0, 0.0, 0.0],
-r_min: 184.0, // mm, photocathode-edge depth
-r_max: 203.0, // mm, inner glass surface
+r_max: 203.0, // mm, inner glass surface (r_min is computed by the factory from the Ø72 cathode edge)
 pos_table: "DOMINFO_aframe_spacing5m_hex_latest",
 pmt_model: "r12199_rev",
 start_idx: 93,
