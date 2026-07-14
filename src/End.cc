@@ -1,4 +1,7 @@
 #include <End.hh>
+#include <GeoDOMGelFactory.hh>
+#include <VertexGen_EcoMug.hh>
+#include <RAT/GLG4VertexGen.hh>
 #include <RAT/DB.hh>
 #include "MyDAQProc.hh"
 
@@ -22,6 +25,7 @@ End::End(RAT::AnyParse* parser, int argc, char** argv) : Rat(parser, argc, argv)
   RAT::DB::Get()->LoadDefaults();
   // Initialize a geometry factory
   new GeoEndFactory();
+  new GeoDOMGelFactory();
   new RAT::GeoGdmlFactory();
   //new DichroiconArrayFactory();
 #if TENSORFLOW_Enabled && NLOPT_Enabled
@@ -33,5 +37,6 @@ End::End(RAT::AnyParse* parser, int argc, char** argv) : Rat(parser, argc, argv)
   // Add a unique component to the datastructure
   // Register generators
   RAT::GlobalFactory<GLG4Gen>::Register("laserball", new RAT::Alloc<GLG4Gen, LaserballGenerator>);
+  RAT::GlobalFactory<GLG4VertexGen>::Register("ecomug", new RAT::Alloc<GLG4VertexGen, END::VertexGen_EcoMug>);
 }
 }  // namespace END

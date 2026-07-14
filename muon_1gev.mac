@@ -1,6 +1,11 @@
 # Set the detector
 /rat/db/set DETECTOR experiment "End"
-/rat/db/set DETECTOR geo_file "End/END.geo"
+
+# full geometry
+# /rat/db/set DETECTOR geo_file "End/END.geo"
+
+# toy 1 DOM geometry, DOM is at (-1.5, 0, 2) meters
+/rat/db/set DETECTOR geo_file "End/END_1DOM.geo"
 
 # Initialize the run
 /run/initialize
@@ -10,12 +15,15 @@
 
 # Set the output file
 /rat/proclast outntuple
-/rat/procset file "muon_1gev_output.root"
+/rat/procset file "muon_1gev_outroot.root"
 
 /generator/add combo gun:point:poisson
-# Generate a 1 GeV muon at (0,0,0) along +z
-/generator/vtx/set mu- 0 0 1 1000
-/generator/pos/set 0 0 0
+# Generate a 1 GeV muon at (0,0,0) along +z (pos at mm)
+# /generator/vtx/set mu- 0 0 1 1000
+# /generator/pos/set 0 0 0
+
+/generator/vtx/set mu- 0 -1 0 1000
+/generator/pos/set -4500 2500 2000
 
 # Run 100 events
-/run/beamOn 10
+/run/beamOn 100000

@@ -1,11 +1,13 @@
 add_library( END SHARED
   End.cc
   GeoEndFactory.cc
+  GeoDOMGelFactory.cc
   GeoGdmlFactory.cc
   #DichroiconArrayFactory.cc
   HitmanProc.cc
   NtupleProc.cc
   LaserballGenerator.cc
+  VertexGen_EcoMug.cc
   MyDAQProc.cc
 )
 

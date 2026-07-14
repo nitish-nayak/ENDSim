@@ -3,3 +3,5 @@
 /examples/
 *.root
 *.log
+.ipynb_checkpoints/
+__pycache__/

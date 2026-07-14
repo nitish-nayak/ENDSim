@@ -6,7 +6,7 @@ valid_end: [0, 0],
 mother: "", // world volume has no mother
 type: "box",
 size: [250000.0, 250000.0, 250000.0], // mm, half-length
-material: "air", // surface setup: 1 DOM in a dark box
+material: "water",
 invisible: 0,
 color: [1.0, 1.0, 1.0, 0.1],
 drawstyle: "wireframe"
@@ -22,7 +22,7 @@ mother: "world",
 type: "box",
 size: [25000.0, 25000.0, 250000.0], // mm, half-length (50m x 50m x 500m total)
 position: [0.0, 0.0, 0.0],
-material: "air", // dark-box air (was lake_water)
+material: "lake_water",
 invisible: 0,
 color: [0.0, 0.5, 1.0, 0.2],
 drawstyle: "wireframe"
@@ -51,32 +51,9 @@ mother: "dom_glass_3",
 type: "sphere",
 r_max: 203.0,
 position: [0.0, 0.0, 0.0],
-material: "air", // DOM interior: air (optically dead); the gel handles glass -> PMT coupling
+material: "lake_water",
 color: [0.0, 0.5, 1.0, 0.1],
 invisible: 1,
-drawstyle: "wireframe"
-}
-
-////////////////////////////////// Optical-coupling gel meniscus.  ///////////////////////////////////
-// Shell from the photocathode-edge depth to the inner glass, with the PMT domes
-// subtracted (built by the domgel factory from the PMT positions + model). Couples
-// glass -> gel -> photocathode with no air gap.
-{
-name: "GEO",
-index: "dom_gel_3",
-valid_begin: [0, 0],
-valid_end: [0, 0],
-mother: "dom_inner_3",
-type: "domgel",
-position: [0.0, 0.0, 0.0],
-r_min: 184.0, // mm, photocathode-edge depth
-r_max: 203.0, // mm, inner glass surface
-pos_table: "DOMINFO_aframe_spacing5m_hex_latest",
-pmt_model: "r12199_rev",
-start_idx: 93,
-end_idx: 123,
-material: "borosilicate_glass",
-color: [1.0, 1.0, 0.6, 0.35],
 drawstyle: "wireframe"
 }
 

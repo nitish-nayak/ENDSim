@@ -1,0 +1,38 @@
+# Set the detector
+/rat/db/set DETECTOR experiment "End"
+
+# toy 1 DOM geometry (dark-box air), DOM glass at (-1.5, 0, 2) m
+/rat/db/set DETECTOR geo_file "End/END_1DOM.geo"
+
+# Initialize the run
+/run/initialize
+
+# Load the DAQ processor (no 'noise' proc -> only physical K40 hits)
+/rat/proc mydaq
+
+# Set the output file
+/rat/proclast outntuple
+/rat/procset file "dark_box_outroot.root"
+
+# --- Cosmic muons (ECoMUG sea-level flux) ------------------------------------
+# Rate = 93.008 Hz/m^2 (integrated area flux) x 4 m^2 = 372 Hz.
+/generator/add combo ecomug:point:poisson
+/generator/vtx/set 1.27 1000 1000
+/generator/pos/set -1500 300 2002
+/generator/rate/set 372
+
+# K40 decays distributed uniformly through the DOM borosilicate glass shell.
+# regexfill fills the matched volume and subtracts daughter volumes, so it
+# samples only the 203->216 mm glass shell, never the inner water.
+#/generator/add combo decay0:regexfill:poisson
+#/generator/vtx/set backg K40
+#/generator/pos/set dom_glass_3
+
+# Total glass activity in Hz:
+#   V_shell = 4/3 pi (0.216^3 - 0.203^3)  = 7.17e-3 m^3
+#   m_glass = 2230 kg/m^3 * V_shell       = 16.0 kg
+#   m_K     = 0.0166 * m_glass            = 266 g
+#   A       = 31.7 Bq/g * m_K             = 8420 Bq
+#/generator/rate/set 8420
+
+/run/beamOn 100000
